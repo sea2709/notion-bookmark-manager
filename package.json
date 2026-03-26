@@ -1,0 +1,19 @@
+{
+  "name": "notion-bookmark-manager",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Chrome extension to save browser tabs to Notion",
+  "scripts": {
+    "build": "tsx build.ts",
+    "watch": "tsx build.ts --watch"
+  },
+  "dependencies": {
+    "@notionhq/client": "^5.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "esbuild": "^0.27.3",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
