@@ -29,6 +29,10 @@ interface FetchRecentPayload {
   forceRefresh?: boolean;
 }
 
+interface SearchBookmarksPayload {
+  keyword: string;
+}
+
 interface MessageResponse {
   success: boolean;
   error?: string;
@@ -59,6 +63,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch((err: Error) => sendResponse({ success: false, error: err.message }));
     return true;
   }
+
+  if (message.type === 'SEARCH_BOOKMARKS') {
+    handleSearchBookmarks(message.payload as SearchBookmarksPayload)
+      .then(sendResponse)
+      .catch((err: Error) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
 });
 
 async function handleSaveBookmark({ title, url, notes, prompt, folderPageId }: SaveBookmarkPayload): Promise<MessageResponse> {
@@ -85,6 +96,10 @@ async function handleSaveBookmark({ title, url, notes, prompt, folderPageId }: S
 
 async function handleFetchFolders(): Promise<MessageResponse> {
   return callServer('fetch_folders');
+}
+
+async function handleSearchBookmarks({ keyword }: SearchBookmarksPayload): Promise<MessageResponse> {
+  return callServer('search_bookmarks', { keyword });
 }
 
 async function handleFetchRecent({ forceRefresh = false }: FetchRecentPayload): Promise<MessageResponse> {

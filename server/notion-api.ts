@@ -1,12 +1,16 @@
 import { Client, APIResponseError } from '@notionhq/client';
-import { GoogleGenAI, createPartFromUri } from '@google/genai';
+import { GoogleGenAI, createPartFromUri, mcpToTool } from '@google/genai';
+import { Client as McpClient } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 type ExtendedClient = Client & {
   dataSources: {
+    retrieve(params: { 'data_source_id': string }): Promise<unknown>;
     query(params: {
       data_source_id: string;
       start_cursor?: string;
       page_size?: number;
+      sorts?: Array<{ timestamp: string; direction: string }>;
     }): Promise<{ results: unknown[]; has_more: boolean; next_cursor: string | null }>;
   };
 };
@@ -83,24 +87,32 @@ export async function createBookmark({
 export interface QueryRecentBookmarksParams {
   apiToken: string;
   databaseId: string;
-  pageSize?: number;
 }
 
 export async function queryRecentBookmarks({
   apiToken,
   databaseId,
-  pageSize = 10,
 }: QueryRecentBookmarksParams): Promise<unknown> {
-  const notion = createClient(apiToken);
+  const notion = createClient(apiToken) as ExtendedClient;
   const database = await notion.databases.retrieve({ database_id: databaseId }) as unknown as {
     data_sources: Array<{ id: string }>;
   };
-  const datasource = database.data_sources[0];
-  return notion.dataSources.query({
-    data_source_id: datasource.id,
-    sorts: [{ timestamp: 'created_time', direction: 'descending' }],
-    page_size: pageSize,
-  });
+  const datasourceId = database.data_sources[0].id;
+
+  const results: unknown[] = [];
+  let cursor: string | undefined;
+  do {
+    const response = await notion.dataSources.query({
+      data_source_id: datasourceId,
+      sorts: [{ timestamp: 'created_time', direction: 'descending' }],
+      start_cursor: cursor,
+      page_size: 100,
+    });
+    results.push(...response.results);
+    cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+
+  return { results };
 }
 
 export interface QueryFoldersParams {
@@ -226,6 +238,70 @@ export async function moveFolder({
         : { relation: [] }
     } as Parameters<typeof notion.pages.update>[0]['properties']
   });
+}
+
+export interface SearchBookmarkParams {
+  apiToken: string;
+  databaseId: string;
+  keyword: string;
+}
+
+export async function searchBookmark({
+  apiToken,
+  databaseId,
+  keyword,
+}: SearchBookmarkParams): Promise<unknown> {
+
+
+  const ai = new GoogleGenAI({});
+
+  const notionClient = new McpClient({ name: "notion-client", version: "1.0.0" });
+
+  const transport = new StdioClientTransport({
+    command: "npx",
+    args: ["-y", "mcp-remote", "https://mcp.notion.com/mcp"],
+    env: {
+      NOTION_TOKEN: process.env.NOTION_API_KEY
+    },
+  });
+
+  await notionClient.connect(transport);
+
+  const prompt = `Search for pages under the database with the ID ${databaseId} mentioning '${keyword}'`;
+  const response = await ai.models.generateContent({
+    model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
+    contents: prompt,
+    config: {
+      tools: [mcpToTool(notionClient)],
+    },
+  });
+
+  console.log('response', response.text);
+  return { text: response.text ?? '' };
+
+  // const notion = createClient(apiToken);
+
+  // const results: unknown[] = [];
+  // let cursor: string | undefined;
+  // do {
+  //   const response = await notion.search({
+  //     query: keyword,
+  //     filter: { value: 'page', property: 'object' },
+  //     sort: { direction: 'descending', timestamp: 'last_edited_time' },
+  //     start_cursor: cursor,
+  //     page_size: 100,
+  //   }) as { results: Array<{ parent?: { database_id?: string } }>; has_more: boolean; next_cursor: string | null };
+
+  //   const normalizedDbId = databaseId.replace(/-/g, '');
+  //   for (const page of response.results) {
+  //     const parentDbId = (page.parent?.database_id ?? '').replace(/-/g, '');
+  //     if (parentDbId === normalizedDbId) results.push(page);
+  //   }
+
+  //   cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
+  // } while (cursor);
+
+  // return { results };
 }
 
 export interface ValidateCredentialsParams {

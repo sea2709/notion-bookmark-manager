@@ -4,18 +4,22 @@ import type { Bookmark, Folder, FolderNode } from '../shared/types';
 const viewNotConfigured = document.getElementById('view-not-configured') as HTMLElement;
 const viewSave          = document.getElementById('view-save') as HTMLElement;
 const viewRecent        = document.getElementById('view-recent') as HTMLElement;
+const viewSearch        = document.getElementById('view-search') as HTMLElement;
 const btnToggleView     = document.getElementById('btn-toggle-view') as HTMLButtonElement;
+const btnSearchView     = document.getElementById('btn-search-view') as HTMLButtonElement;
 const btnSave           = document.getElementById('btn-save') as HTMLButtonElement;
 const btnRefresh        = document.getElementById('btn-refresh') as HTMLButtonElement;
 const inputTitle        = document.getElementById('input-title') as HTMLInputElement;
 const inputUrl          = document.getElementById('input-url') as HTMLInputElement;
 const inputNotes        = document.getElementById('input-notes') as HTMLTextAreaElement;
 const inputPrompt       = document.getElementById('input-prompt') as HTMLTextAreaElement;
+const inputSearch       = document.getElementById('input-search') as HTMLInputElement;
 const saveStatus        = document.getElementById('save-status') as HTMLElement;
 const recentList        = document.getElementById('recent-list') as HTMLElement;
+const searchResults     = document.getElementById('search-results') as HTMLElement;
 const folderTree        = document.getElementById('folder-tree') as HTMLElement;
 
-type ViewName = 'save' | 'recent' | 'not-configured';
+type ViewName = 'save' | 'recent' | 'search' | 'not-configured';
 
 let currentView: ViewName = 'save';
 let currentTab: chrome.tabs.Tab | null = null;
@@ -69,7 +73,7 @@ async function loadFolderTree(): Promise<void> {
 
 function buildTree(folders: Folder[]): FolderNode[] {
   const map: Record<string, FolderNode> = Object.fromEntries(
-    folders.map(f => [f.id, { ...f, children: [] }])
+    folders.map(f => [f.pageId, { ...f, children: [], bookmarks: [] }])
   );
   const roots: FolderNode[] = [];
   for (const node of Object.values(map)) {
@@ -109,10 +113,9 @@ function renderNodes(nodes: FolderNode[], depth: number): HTMLUListElement {
   for (const node of nodes) {
     const li = document.createElement('li');
     const item = document.createElement('div');
-    item.className = 'folder-item';
+    item.className = `folder-item depth-${depth}`;
     item.dataset['id'] = String(node.id);
     item.dataset['pageId'] = node.pageId;
-    item.style.paddingLeft = `${8 + depth * 14}px`;
     const icon = node.children.length
       ? `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>`
       : `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
@@ -132,7 +135,9 @@ function showView(view: ViewName): void {
   viewNotConfigured.classList.add('hidden');
   viewSave.classList.add('hidden');
   viewRecent.classList.add('hidden');
+  viewSearch.classList.add('hidden');
   btnToggleView.classList.remove('active');
+  btnSearchView.classList.remove('active');
 
   if (view === 'not-configured') {
     viewNotConfigured.classList.remove('hidden');
@@ -141,7 +146,14 @@ function showView(view: ViewName): void {
   } else if (view === 'recent') {
     viewRecent.classList.remove('hidden');
     btnToggleView.classList.add('active');
-    loadRecentBookmarks();
+    loadBrowseView();
+  } else if (view === 'search') {
+    viewSearch.classList.remove('hidden');
+    btnSearchView.classList.add('active');
+    inputSearch.focus();
+    if (!inputSearch.value) {
+      searchResults.innerHTML = `<div class="empty-recent"><span>Type a keyword and press Enter to search.</span></div>`;
+    }
   }
 }
 
@@ -232,14 +244,19 @@ function hideSaveStatus(): void {
   saveStatus.classList.add('hidden');
 }
 
-// Recent bookmarks
+// Browse bookmarks
 interface FetchRecentResponse {
   success: boolean;
   error?: string;
   bookmarks?: Bookmark[];
 }
 
-async function loadRecentBookmarks(forceRefresh = false): Promise<void> {
+interface FetchFoldersResponse {
+  success: boolean;
+  folders?: Folder[];
+}
+
+async function loadBrowseView(forceRefresh = false): Promise<void> {
   recentList.innerHTML = `
     <div class="loading-state">
       <div class="spinner"></div>
@@ -247,24 +264,26 @@ async function loadRecentBookmarks(forceRefresh = false): Promise<void> {
     </div>`;
 
   try {
-    const response = await sendMessage<FetchRecentResponse>({ type: 'FETCH_RECENT', payload: { forceRefresh } });
+    const [bookmarkRes, folderRes] = await Promise.all([
+      sendMessage<FetchRecentResponse>({ type: 'FETCH_RECENT', payload: { forceRefresh } }),
+      sendMessage<FetchFoldersResponse>({ type: 'FETCH_FOLDERS' }),
+    ]);
 
-    if (!response.success) {
-      if (response.error === 'NOT_CONFIGURED') {
-        showView('not-configured');
-        return;
-      }
+    if (!bookmarkRes.success) {
+      if (bookmarkRes.error === 'NOT_CONFIGURED') { showView('not-configured'); return; }
       recentList.innerHTML = `<div class="empty-recent"><span>Failed to load bookmarks.</span></div>`;
       return;
     }
 
-    renderBookmarks(response.bookmarks ?? []);
+    renderBrowseTree(bookmarkRes.bookmarks ?? [], folderRes.success ? (folderRes.folders ?? []) : []);
   } catch {
     recentList.innerHTML = `<div class="empty-recent"><span>Connection failed.</span></div>`;
   }
 }
 
-function renderBookmarks(bookmarks: Bookmark[]): void {
+function renderBrowseTree(bookmarks: Bookmark[], folders: Folder[]): void {
+  recentList.innerHTML = '';
+
   if (!bookmarks.length) {
     recentList.innerHTML = `
       <div class="empty-recent">
@@ -276,25 +295,132 @@ function renderBookmarks(bookmarks: Bookmark[]): void {
     return;
   }
 
-  recentList.innerHTML = bookmarks.map(b => {
+  // Build folder map with bookmarks attached
+  const nodeMap: Record<string, FolderNode> = Object.fromEntries(
+    folders.map(f => [f.pageId, { ...f, children: [], bookmarks: [] }])
+  );
+  const unfiled: Bookmark[] = [];
+  for (const b of bookmarks) {
+    if (b.folderId && nodeMap[b.folderId]) {
+      nodeMap[b.folderId].bookmarks.push(b);
+    } else {
+      unfiled.push(b);
+    }
+  }
+
+  // Build folder hierarchy
+  const roots: FolderNode[] = [];
+  for (const node of Object.values(nodeMap)) {
+    if (node.parentId && nodeMap[node.parentId]) {
+      nodeMap[node.parentId].children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  function hasBrowseContent(node: FolderNode): boolean {
+    return node.bookmarks.length > 0 || node.children.some(hasBrowseContent);
+  }
+
+  const chevronSvg = `<svg class="folder-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+  function makeFolderHeader(label: string, iconSvg: string, depth: number): { header: HTMLDivElement; children: HTMLDivElement } {
+    const header = document.createElement('div');
+    header.className = `folder-item depth-${depth}`;
+    header.innerHTML = `${iconSvg}<span>${label}</span>${chevronSvg}`;
+
+    header.classList.add('collapsed');
+
+    const children = document.createElement('div');
+    children.className = 'folder-children hidden';
+
+    header.addEventListener('click', () => {
+      const collapsed = header.classList.toggle('collapsed');
+      children.classList.toggle('hidden', collapsed);
+    });
+
+    return { header, children };
+  }
+
+  function renderNodes(nodes: FolderNode[], depth: number): HTMLUListElement {
+    const ul = document.createElement('ul');
+    ul.className = 'folder-list';
+    for (const node of nodes) {
+      if (!hasBrowseContent(node)) continue;
+      const li = document.createElement('li');
+
+      const folderIcon = `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>`;
+      const { header, children } = makeFolderHeader(escapeHtml(node.name), folderIcon, depth);
+      li.appendChild(header);
+
+      if (node.bookmarks.length) children.appendChild(renderBookmarkItems(node.bookmarks, depth + 1));
+      if (node.children.length) children.appendChild(renderNodes(node.children, depth + 1));
+      li.appendChild(children);
+
+      ul.appendChild(li);
+    }
+    return ul;
+  }
+
+  const root = document.createElement('ul');
+  root.className = 'folder-list';
+
+  // Unfiled bookmarks first
+  if (unfiled.length) {
+    const li = document.createElement('li');
+    const unfiledIcon = `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+    const { header, children } = makeFolderHeader('Unfiled', unfiledIcon, 0);
+    children.appendChild(renderBookmarkItems(unfiled, 1));
+    li.appendChild(header);
+    li.appendChild(children);
+    root.appendChild(li);
+  }
+
+  // Folders
+  for (const node of roots) {
+    if (!hasBrowseContent(node)) continue;
+    root.appendChild(renderNodes([node], 0));
+  }
+
+  recentList.appendChild(root);
+}
+
+function renderBookmarkItems(bookmarks: Bookmark[], depth: number): HTMLUListElement {
+  const ul = document.createElement('ul');
+  ul.className = 'folder-list';
+  for (const b of bookmarks) {
+    const li = document.createElement('li');
     const domain = getDomain(b.url);
     const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=16` : '';
-    const dateStr = formatDate(b.dateAdded);
-    return `
-      <div class="bookmark-item">
-        ${faviconUrl
-          ? `<img class="bookmark-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">`
-          : `<div class="bookmark-favicon-placeholder"></div>`
-        }
-        <div class="bookmark-content">
-          <a class="bookmark-title" href="${escapeHtml(b.url)}" target="_blank" title="${escapeHtml(b.title)}">${escapeHtml(b.title)}</a>
-          <div class="bookmark-url">${escapeHtml(domain || b.url)}</div>
-          <div class="bookmark-meta">
-            <span class="bookmark-date">${dateStr}</span>
-          </div>
-        </div>
-      </div>`;
-  }).join('');
+
+    const item = document.createElement('div');
+    item.className = `bookmark-item-tree depth-${depth}`;
+
+    if (faviconUrl) {
+      const img = document.createElement('img');
+      img.className = 'bookmark-favicon';
+      img.src = faviconUrl;
+      img.alt = '';
+      img.addEventListener('error', () => img.classList.add('error'));
+      item.appendChild(img);
+    } else {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'bookmark-favicon-placeholder';
+      item.appendChild(placeholder);
+    }
+
+    const link = document.createElement('a');
+    link.className = 'bookmark-title';
+    link.href = b.url;
+    link.target = '_blank';
+    link.title = b.title;
+    link.textContent = b.title;
+    item.appendChild(link);
+
+    li.appendChild(item);
+    ul.appendChild(li);
+  }
+  return ul;
 }
 
 // Helpers
@@ -306,20 +432,6 @@ function getDomain(url: string): string {
   }
 }
 
-function formatDate(isoString: string): string {
-  if (!isoString) return '';
-  try {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  } catch {
-    return '';
-  }
-}
 
 function escapeHtml(str: string): string {
   return str
@@ -329,12 +441,45 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
+// Search
+interface SearchResponse {
+  success: boolean;
+  text?: string;
+  error?: string;
+}
+
+async function executeSearch(): Promise<void> {
+  const keyword = inputSearch.value.trim();
+  if (!keyword) return;
+
+  searchResults.innerHTML = `<div class="loading-state"><div class="spinner"></div><span>Searching...</span></div>`;
+
+  try {
+    const res = await sendMessage<SearchResponse>({ type: 'SEARCH_BOOKMARKS', payload: { keyword } });
+    if (!res.success) {
+      searchResults.innerHTML = `<div class="empty-recent"><span>Search failed.</span></div>`;
+      return;
+    }
+    searchResults.innerHTML = `<div class="search-result-text">${escapeHtml(res.text ?? '')}</div>`;
+  } catch {
+    searchResults.innerHTML = `<div class="empty-recent"><span>Connection failed.</span></div>`;
+  }
+}
+
 // Event listeners
 btnToggleView.addEventListener('click', () => {
   showView(currentView === 'recent' ? 'save' : 'recent');
 });
 
-btnRefresh.addEventListener('click', () => loadRecentBookmarks(true));
+btnSearchView.addEventListener('click', () => {
+  showView(currentView === 'search' ? 'save' : 'search');
+});
+
+btnRefresh.addEventListener('click', () => loadBrowseView(true));
+
+inputSearch.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'Enter') executeSearch();
+});
 
 // Start
 init();

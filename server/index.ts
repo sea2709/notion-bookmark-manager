@@ -10,9 +10,9 @@ import {
   renameFolder,
   moveFolder,
   validateCredentials,
+  searchBookmark,
 } from './notion-api';
 import type { Folder, FolderMeta } from '../shared/types';
-import { QUERY_PAGE_SIZE } from '../shared/constants';
 
 const app = express();
 app.use(cors());
@@ -48,9 +48,6 @@ interface SaveBookmarkArgs {
   folderPageId?: string;
 }
 
-interface FetchRecentArgs {
-  pageSize?: number;
-}
 
 interface CreateFolderArgs {
   name: string;
@@ -75,6 +72,10 @@ interface DeleteFolderArgs {
   pageId: string;
 }
 
+interface SearchBookmarkArgs {
+  keyword: string;
+}
+
 // ─── Tool handlers ────────────────────────────────────────────────────────────
 
 const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, unknown>>> = {
@@ -89,12 +90,10 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
     return { success: true, pageId: page.id };
   },
 
-  async fetch_recent_bookmarks(args) {
-    const { pageSize = QUERY_PAGE_SIZE } = args as FetchRecentArgs;
+  async fetch_recent_bookmarks(_args) {
     const result = await queryRecentBookmarks({
       apiToken: getApiToken(),
       databaseId: getBookmarkDatabaseId(),
-      pageSize,
     }) as {
       results: Array<{
         id: string;
@@ -103,6 +102,7 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
           URL?: { url?: string | null };
           Notes?: { rich_text?: Array<{ plain_text?: string }> };
           'Date Added'?: { date?: { start?: string } };
+          Folder?: { relation?: Array<{ id: string }> };
         };
         created_time: string;
       }>;
@@ -113,6 +113,7 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
       url: page.properties.URL?.url ?? '',
       notes: page.properties.Notes?.rich_text?.[0]?.plain_text ?? '',
       dateAdded: page.properties['Date Added']?.date?.start ?? page.created_time,
+      folderId: page.properties.Folder?.relation?.[0]?.id,
     }));
     return { success: true, bookmarks };
   },
@@ -173,6 +174,16 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
     const { pageId } = args as DeleteFolderArgs;
     await deleteFolder({ apiToken: getApiToken(), pageId });
     return { success: true };
+  },
+
+  async search_bookmarks(args) {
+    const { keyword } = args as SearchBookmarkArgs;
+    const result = await searchBookmark({
+      apiToken: getApiToken(),
+      databaseId: getBookmarkDatabaseId(),
+      keyword,
+    }) as { text: string };
+    return { success: true, text: result.text };
   },
 };
 

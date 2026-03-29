@@ -20,14 +20,21 @@
         <span class="header-title">Bookmark Manager</span>
       </div>
       <div class="header-actions">
-        <button id="btn-toggle-view" class="btn-icon" title="View recent bookmarks">
+        <button id="btn-toggle-view" class="btn-icon" title="Browse bookmarks">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
             <rect x="9" y="3" width="6" height="4" rx="1" ry="1"/>
             <line x1="9" y1="12" x2="15" y2="12"/>
             <line x1="9" y1="16" x2="13" y2="16"/>
           </svg>
-          <span>Recent</span>
+          <span>Browse</span>
+        </button>
+        <button id="btn-search-view" class="btn-icon" title="Search bookmarks">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Search</span>
         </button>
       </div>
     </header>
@@ -102,7 +109,7 @@
     <!-- Recent Bookmarks View -->
     <div id="view-recent" class="view hidden">
       <div class="recent-toolbar">
-        <span class="recent-title">Recent Bookmarks</span>
+        <span class="recent-title">My Bookmarks</span>
         <button id="btn-refresh" class="btn-icon" title="Refresh from Notion">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10"/>
@@ -116,6 +123,18 @@
           <span>Loading...</span>
         </div>
       </div>
+    </div>
+
+    <!-- Search View -->
+    <div id="view-search" class="view hidden">
+      <div class="search-toolbar">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="input-search" class="search-input" placeholder="Search bookmarks..." autocomplete="off">
+      </div>
+      <div id="search-results" class="search-results"></div>
     </div>
 
   </div>

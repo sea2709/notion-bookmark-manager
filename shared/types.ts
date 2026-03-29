@@ -4,6 +4,7 @@ export interface Bookmark {
   url: string;
   notes: string;
   dateAdded: string;
+  folderId?: string;
 }
 
 export interface Folder {
@@ -20,4 +21,5 @@ export interface FolderMeta {
 
 export interface FolderNode extends Folder {
   children: FolderNode[];
+  bookmarks: Bookmark[];
 }
