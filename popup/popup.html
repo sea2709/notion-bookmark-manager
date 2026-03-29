@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Notion Bookmark Manager</title>
+  <title>Notion Bookmarks Manager</title>
   <link rel="stylesheet" href="../styles/common.css">
   <link rel="stylesheet" href="popup.css">
 </head>
@@ -14,7 +14,7 @@
     <header class="header">
       <div class="header-logo">
         <img src="../icons/icon32.png" width="20" height="20" alt="logo">
-        <span class="header-title">Bookmark Manager</span>
+        <span class="header-title">Bookmarks Manager</span>
       </div>
       <div class="header-actions">
         <button id="btn-manage-view" class="btn-icon active" title="Manage bookmarks">
@@ -47,8 +47,8 @@
     <div id="view-save" class="view hidden">
       <div class="form-body">
         <div class="field">
-          <label for="input-title">Title</label>
-          <input type="text" id="input-title" placeholder="Page title" autocomplete="off">
+          <label for="input-title">Title <span class="field-required">*</span></label>
+          <input type="text" id="input-title" placeholder="Page title" autocomplete="off" required>
         </div>
 
         <div class="field">
@@ -69,18 +69,14 @@
         <div class="field">
           <label for="input-prompt">Prompt</label>
           <textarea id="input-prompt" rows="3">Please provide a concise summary of the content on this webpage</textarea>
-          <p class="field-hint">This prompt is for Giemini to generate the content of this page</p>
+          <p class="field-hint">This prompt is to generate the content of the bookmark.</p>
         </div>
 
-        <details class="accordion">
-          <summary>Show more fields</summary>
-          <div class="accordion-body">
-            <div class="field">
-              <label for="input-notes">Notes</label>
-              <textarea id="input-notes" rows="3" placeholder="Optional notes..."></textarea>
-            </div>
-          </div>
-        </details>
+        <div class="field">
+          <label for="input-notes">Notes</label>
+          <textarea id="input-notes" rows="3" placeholder="Optional notes..."></textarea>
+          <p class="field-hint">Personal notes or context about this bookmark.</p>
+        </div>
       </div>
 
       <div class="form-footer">

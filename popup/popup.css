@@ -107,52 +107,16 @@ body {
   gap: 4px;
 }
 
+.field-required {
+  color: var(--color-error);
+}
+
 .field-hint {
   margin: 3px 0 0;
   font-size: 11px;
   color: var(--color-text-secondary);
 }
 
-.accordion {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.accordion summary {
-  padding: 8px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  user-select: none;
-  background: var(--color-surface);
-  list-style: none;
-}
-
-.accordion summary::-webkit-details-marker { display: none; }
-
-.accordion summary::after {
-  content: '▸';
-  float: right;
-  transition: transform 0.2s ease;
-}
-
-.accordion[open] summary::after {
-  transform: rotate(90deg);
-}
-
-.accordion summary:hover {
-  background: var(--color-hover);
-}
-
-.accordion-body {
-  padding: 10px 10px 4px;
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-
-}
 
 .folder-tree {
   border: 1px solid var(--color-border);
