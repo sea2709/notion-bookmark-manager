@@ -87,14 +87,13 @@ function buildTree(folders: Folder[]): FolderNode[] {
 }
 
 function renderFolderTree(folders: Folder[]): void {
-  if (!folders.length) {
-    folderTree.innerHTML = `<div class="folder-loading"><span>No folders found.</span></div>`;
-    return;
-  }
   const roots = buildTree(folders);
   folderTree.innerHTML = '';
-  folderTree.appendChild(renderNodes(roots, 0));
+  if (roots.length) folderTree.appendChild(renderNodes(roots, 0));
+  folderTree.appendChild(makeNewFolderRow(null, 0));
+
   folderTree.addEventListener('click', (e: MouseEvent) => {
+    if ((e.target as Element).closest('.folder-item-add, .folder-inline-form')) return;
     const item = (e.target as Element).closest<HTMLElement>('.folder-item');
     if (!item) return;
     folderTree.querySelectorAll('.folder-item.selected').forEach(el => el.classList.remove('selected'));
@@ -112,6 +111,7 @@ function renderNodes(nodes: FolderNode[], depth: number): HTMLUListElement {
   ul.className = 'folder-list';
   for (const node of nodes) {
     const li = document.createElement('li');
+
     const item = document.createElement('div');
     item.className = `folder-item depth-${depth}`;
     item.dataset['id'] = String(node.id);
@@ -120,13 +120,82 @@ function renderNodes(nodes: FolderNode[], depth: number): HTMLUListElement {
       ? `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>`
       : `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
     item.innerHTML = `${icon}<span>${escapeHtml(node.name)}</span>`;
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'folder-item-add';
+    addBtn.title = 'New subfolder';
+    addBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showInlineFolderForm(li, node.pageId, depth + 1);
+    });
+    item.appendChild(addBtn);
     li.appendChild(item);
-    if (node.children.length) {
-      li.appendChild(renderNodes(node.children, depth + 1));
-    }
+
+    if (node.children.length) li.appendChild(renderNodes(node.children, depth + 1));
     ul.appendChild(li);
   }
   return ul;
+}
+
+function makeNewFolderRow(parentPageId: string | null, depth: number): HTMLDivElement {
+  const row = document.createElement('div');
+  row.className = `folder-new-root depth-${depth}`;
+  row.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>New folder</span>`;
+  row.addEventListener('click', () => showInlineFolderForm(row.parentElement!, parentPageId, depth, row));
+  return row;
+}
+
+function showInlineFolderForm(container: HTMLElement, parentPageId: string | null, depth: number, insertBefore?: Element): void {
+  folderTree.querySelectorAll('.folder-inline-form').forEach(el => el.remove());
+
+  const form = document.createElement('div');
+  form.className = `folder-inline-form depth-${depth}`;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'folder-inline-input';
+  input.placeholder = 'Folder name...';
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'folder-inline-btn';
+  confirmBtn.title = 'Confirm';
+  confirmBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'folder-inline-btn';
+  cancelBtn.title = 'Cancel';
+  cancelBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
+  form.appendChild(input);
+  form.appendChild(confirmBtn);
+  form.appendChild(cancelBtn);
+
+  if (insertBefore) {
+    container.insertBefore(form, insertBefore);
+  } else {
+    const header = container.querySelector('.folder-item');
+    header ? header.after(form) : container.appendChild(form);
+  }
+  input.focus();
+
+  const submit = async () => {
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    form.remove();
+    try {
+      await sendMessage<{ success: boolean }>({ type: 'CREATE_FOLDER', payload: { name, parentPageId } });
+    } finally {
+      loadFolderTree();
+    }
+  };
+
+  input.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    if (e.key === 'Escape') form.remove();
+  });
+  confirmBtn.addEventListener('click', submit);
+  cancelBtn.addEventListener('click', () => form.remove());
 }
 
 // Views

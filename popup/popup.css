@@ -208,6 +208,85 @@ body {
   background: var(--color-hover);
 }
 
+.folder-item-add {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 2px 3px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.folder-item:hover .folder-item-add {
+  display: flex;
+}
+
+.folder-item-add:hover {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+.folder-inline-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 0;
+}
+
+.folder-inline-input {
+  flex: 1;
+  font-size: 12px;
+  padding: 3px 6px;
+  height: 24px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  outline: none;
+  min-width: 0;
+}
+
+.folder-inline-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.folder-inline-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.folder-new-root {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-right: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-top: 1px solid var(--color-border);
+  user-select: none;
+}
+
+.folder-new-root:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
 .folder-item.selected {
   background: var(--color-primary-light, #eff6ff);
   color: var(--color-primary, #2563eb);
