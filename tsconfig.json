@@ -7,8 +7,9 @@
     "noEmit": true,
     "skipLibCheck": true,
     "lib": ["ES2022", "DOM"],
-    "types": ["chrome"]
+    "types": ["chrome"],
+    "sourceMap": true
   },
-  "include": ["shared/**/*", "background/**/*", "popup/**/*", "options/**/*"],
+  "include": ["shared/**/*", "background/**/*", "popup/**/*", "options/**/*", "server/notion-api.ts"],
   "exclude": ["node_modules", "dist", "server"]
 }

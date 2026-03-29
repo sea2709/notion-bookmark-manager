@@ -10,10 +10,6 @@
     "tabs"
   ],
 
-  "host_permissions": [
-    "https://api.notion.com/*"
-  ],
-
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
@@ -28,11 +24,6 @@
       "128": "icons/icon128.png"
     },
     "default_title": "Save to Notion"
-  },
-
-  "options_ui": {
-    "page": "options/options.html",
-    "open_in_tab": true
   },
 
   "icons": {

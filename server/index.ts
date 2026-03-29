@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import {
@@ -8,7 +9,8 @@ import {
   deleteFolder,
   renameFolder,
   moveFolder,
-} from '../shared/notion-api';
+  validateCredentials,
+} from './notion-api';
 import type { Folder, FolderMeta } from '../shared/types';
 import { QUERY_PAGE_SIZE } from '../shared/constants';
 
@@ -18,32 +20,39 @@ app.use(express.json());
 
 const PORT = 3456;
 
+function getApiToken(): string {
+  const v = process.env.NOTION_INTERNAL_INTEGRATION_SECRET;
+  if (!v) throw new Error('NOTION_INTERNAL_INTEGRATION_SECRET is not set in .env');
+  return v;
+}
+
+function getBookmarkDatabaseId(): string {
+  const v = process.env.NOTION_BOOKMARKS_DATABASE_ID;
+  if (!v) throw new Error('NOTION_BOOKMARKS_DATABASE_ID is not set in .env');
+  return v;
+}
+
+function getFolderDatabaseId(): string {
+  const v = process.env.NOTION_FOLDERS_DATABASE_ID;
+  if (!v) throw new Error('NOTION_FOLDERS_DATABASE_ID is not set in .env');
+  return v;
+}
+
 // ─── Tool parameter interfaces ────────────────────────────────────────────────
 
 interface SaveBookmarkArgs {
-  apiToken: string;
-  databaseId: string;
   title: string;
   url: string;
-  tags?: string[];
   notes?: string;
+  prompt?: string;
   folderPageId?: string;
 }
 
 interface FetchRecentArgs {
-  apiToken: string;
-  databaseId: string;
   pageSize?: number;
 }
 
-interface FetchFoldersArgs {
-  apiToken: string;
-  databaseId: string;
-}
-
 interface CreateFolderArgs {
-  apiToken: string;
-  databaseId: string;
   name: string;
   parentPageId?: string | null;
   titlePropName?: string;
@@ -51,21 +60,18 @@ interface CreateFolderArgs {
 }
 
 interface RenameFolderArgs {
-  apiToken: string;
   pageId: string;
   name: string;
   titlePropName?: string;
 }
 
 interface MoveFolderArgs {
-  apiToken: string;
   pageId: string;
   parentPageId?: string | null;
   parentPropName?: string;
 }
 
 interface DeleteFolderArgs {
-  apiToken: string;
   pageId: string;
 }
 
@@ -73,20 +79,28 @@ interface DeleteFolderArgs {
 
 const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, unknown>>> = {
   async save_bookmark(args) {
-    const { apiToken, databaseId, title, url, tags = [], notes = '', folderPageId } = args as SaveBookmarkArgs;
-    const page = await createBookmark({ apiToken, databaseId, title, url, tags, notes, folderPageId }) as { id: string };
+    const { title, url, notes = '', prompt, folderPageId } = args as SaveBookmarkArgs;
+    const page = await createBookmark({
+      apiToken: getApiToken(),
+      databaseId: getBookmarkDatabaseId(),
+      title, url, notes, prompt, folderPageId,
+    }) as { id: string };
+    console.log('page', page);
     return { success: true, pageId: page.id };
   },
 
   async fetch_recent_bookmarks(args) {
-    const { apiToken, databaseId, pageSize = QUERY_PAGE_SIZE } = args as FetchRecentArgs;
-    const result = await queryRecentBookmarks({ apiToken, databaseId, pageSize }) as {
+    const { pageSize = QUERY_PAGE_SIZE } = args as FetchRecentArgs;
+    const result = await queryRecentBookmarks({
+      apiToken: getApiToken(),
+      databaseId: getBookmarkDatabaseId(),
+      pageSize,
+    }) as {
       results: Array<{
         id: string;
         properties: {
           Title?: { title?: Array<{ plain_text?: string }> };
           URL?: { url?: string | null };
-          Tags?: { multi_select?: Array<{ name: string }> };
           Notes?: { rich_text?: Array<{ plain_text?: string }> };
           'Date Added'?: { date?: { start?: string } };
         };
@@ -97,16 +111,17 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
       notionPageId: page.id,
       title: page.properties.Title?.title?.[0]?.plain_text ?? '',
       url: page.properties.URL?.url ?? '',
-      tags: page.properties.Tags?.multi_select?.map(t => t.name) ?? [],
       notes: page.properties.Notes?.rich_text?.[0]?.plain_text ?? '',
       dateAdded: page.properties['Date Added']?.date?.start ?? page.created_time,
     }));
     return { success: true, bookmarks };
   },
 
-  async fetch_folders(args) {
-    const { apiToken, databaseId } = args as FetchFoldersArgs;
-    const { pages, titlePropName, parentPropName } = await queryFolders({ apiToken, databaseId });
+  async fetch_folders(_args) {
+    const { pages, titlePropName, parentPropName } = await queryFolders({
+      apiToken: getApiToken(),
+      databaseId: getFolderDatabaseId(),
+    });
 
     const folders: Folder[] = (pages as Array<{
       id: string;
@@ -120,11 +135,10 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
       const titleProp = page.properties[titlePropName];
       const parentProp = page.properties[parentPropName];
       const uniqueIdProp = Object.values(page.properties).find(p => p.type === 'unique_id');
-
       return {
         pageId: page.id,
         name: titleProp?.title?.[0]?.plain_text ?? '',
-        parentId: parentProp?.relation?.[0]?.id ?? null,
+        parentId: parentProp?.number ?? null,
         id: uniqueIdProp?.unique_id?.number ?? null,
       };
     });
@@ -134,31 +148,35 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
   },
 
   async create_folder(args) {
-    const { apiToken, databaseId, name, parentPageId, titlePropName, parentPropName } = args as CreateFolderArgs;
-    await createFolder({ apiToken, databaseId, name, parentPageId, titlePropName, parentPropName });
+    const { name, parentPageId, titlePropName, parentPropName } = args as CreateFolderArgs;
+    await createFolder({
+      apiToken: getApiToken(),
+      databaseId: getFolderDatabaseId(),
+      name, parentPageId, titlePropName, parentPropName,
+    });
     return { success: true };
   },
 
   async rename_folder(args) {
-    const { apiToken, pageId, name, titlePropName } = args as RenameFolderArgs;
-    await renameFolder({ apiToken, pageId, name, titlePropName });
+    const { pageId, name, titlePropName } = args as RenameFolderArgs;
+    await renameFolder({ apiToken: getApiToken(), pageId, name, titlePropName });
     return { success: true };
   },
 
   async move_folder(args) {
-    const { apiToken, pageId, parentPageId, parentPropName } = args as MoveFolderArgs;
-    await moveFolder({ apiToken, pageId, parentPageId, parentPropName });
+    const { pageId, parentPageId, parentPropName } = args as MoveFolderArgs;
+    await moveFolder({ apiToken: getApiToken(), pageId, parentPageId, parentPropName });
     return { success: true };
   },
 
   async delete_folder(args) {
-    const { apiToken, pageId } = args as DeleteFolderArgs;
-    await deleteFolder({ apiToken, pageId });
+    const { pageId } = args as DeleteFolderArgs;
+    await deleteFolder({ apiToken: getApiToken(), pageId });
     return { success: true };
   },
 };
 
-// ─── Route ────────────────────────────────────────────────────────────────────
+// ─── Routes ───────────────────────────────────────────────────────────────────
 
 app.post('/call', async (req: Request, res: Response) => {
   const { tool, arguments: args } = req.body as { tool: string; arguments: unknown };
@@ -172,6 +190,23 @@ app.post('/call', async (req: Request, res: Response) => {
   try {
     const result = await handler(args);
     res.json(result);
+  } catch (err) {
+    const error = err as Error & { code?: string };
+    res.status(500).json({ success: false, error: error.message, code: error.code });
+  }
+});
+
+app.post('/test', async (_req: Request, res: Response) => {
+  try {
+    const apiToken = getApiToken();
+    const tests: Promise<{ databaseTitle: string }>[] = [
+      validateCredentials({ apiToken, databaseId: getBookmarkDatabaseId() }),
+    ];
+    const folderDbId = process.env.NOTION_FOLDERS_DATABASE_ID;
+    if (folderDbId) tests.push(validateCredentials({ apiToken, databaseId: folderDbId }));
+
+    const [bookmarkResult, folderResult] = await Promise.all(tests);
+    res.json({ success: true, bookmarkTitle: bookmarkResult.databaseTitle, folderTitle: folderResult?.databaseTitle });
   } catch (err) {
     const error = err as Error & { code?: string };
     res.status(500).json({ success: false, error: error.message, code: error.code });

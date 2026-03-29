@@ -1,4 +1,5 @@
 import { Client, APIResponseError } from '@notionhq/client';
+import { GoogleGenAI, createPartFromUri } from '@google/genai';
 
 type ExtendedClient = Client & {
   dataSources: {
@@ -21,8 +22,8 @@ export interface CreateBookmarkParams {
   databaseId: string;
   title: string;
   url: string;
-  tags?: string[];
   notes?: string;
+  prompt?: string;
   folderPageId?: string;
 }
 
@@ -31,37 +32,52 @@ export async function createBookmark({
   databaseId,
   title,
   url,
-  tags = [],
   notes = '',
+  prompt = '',
   folderPageId,
 }: CreateBookmarkParams): Promise<unknown> {
-  // const notion = createClient(apiToken);
-  // const properties: Record<string, unknown> = {
-  //   Title: {
-  //     title: [{ text: { content: title } }]
-  //   },
-  //   URL: {
-  //     url: url
-  //   },
-  //   Tags: {
-  //     multi_select: tags.map(name => ({ name: name.trim() })).filter(t => t.name)
-  //   },
-  //   Notes: {
-  //     rich_text: notes ? [{ text: { content: notes } }] : []
-  //   },
-  //   'Date Added': {
-  //     date: { start: new Date().toISOString() }
-  //   }
-  // };
-  // if (folderPageId) {
-  //   properties['Folder'] = { relation: [{ id: folderPageId }] };
-  // }
-  // return notion.pages.create({
-  //   parent: { database_id: databaseId },
-  //   properties: properties as Parameters<typeof notion.pages.create>[0]['properties']
-  // });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' });
+  const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
 
-  
+  let generatedContent = '';
+  if (prompt) {
+    const response = await ai.models.generateContent({
+      model,
+      contents: [
+        createPartFromUri(url, 'text/html'),
+        { text: prompt },
+      ],
+    });
+    generatedContent = response.text ?? '';
+  }
+
+  const notion = createClient(apiToken);
+  const properties: Record<string, unknown> = {
+    Title: { title: [{ text: { content: title } }] },
+    URL: { url },
+    Notes: { rich_text: notes ? [{ text: { content: notes } }] : [] },
+    'Date Added': { date: { start: new Date().toISOString() } },
+  };
+  if (folderPageId) {
+    properties['Folder'] = { relation: [{ id: folderPageId }] };
+  }
+
+  const children: unknown[] = generatedContent
+    ? generatedContent
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => ({
+          object: 'block',
+          type: 'paragraph',
+          paragraph: { rich_text: [{ type: 'text', text: { content: line } }] },
+        }))
+    : [];
+
+  return notion.pages.create({
+    parent: { database_id: databaseId },
+    properties: properties as Parameters<typeof notion.pages.create>[0]['properties'],
+    children: children as Parameters<typeof notion.pages.create>[0]['children'],
+  });
 }
 
 export interface QueryRecentBookmarksParams {
@@ -98,7 +114,6 @@ export async function queryFolders({
 }: QueryFoldersParams): Promise<{ pages: unknown[]; titlePropName: string; parentPropName: string }> {
   const notion = createClient(apiToken) as ExtendedClient;
   const database = await notion.databases.retrieve({ database_id: databaseId }) as unknown as {
-    properties: Record<string, { type: string }>;
     data_sources: Array<{ id: string }>;
   };
 

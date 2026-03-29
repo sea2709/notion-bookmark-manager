@@ -1,13 +1,27 @@
-import { createBookmark, queryRecentBookmarks, queryFolders } from '../shared/notion-api';
-import { getConfig, getCachedBookmarks, setCachedBookmarks } from '../shared/storage';
-import { CACHE_SIZE, QUERY_PAGE_SIZE } from '../shared/constants';
-import type { Bookmark, Folder } from '../shared/types';
+import { getCachedBookmarks, setCachedBookmarks } from '../shared/storage';
+import { CACHE_SIZE } from '../shared/constants';
+import type { Bookmark } from '../shared/types';
+
+const SERVER_URL = 'http://localhost:3456';
+
+async function callServer<T>(tool: string, args: Record<string, unknown> = {}): Promise<T> {
+  const res = await fetch(`${SERVER_URL}/call`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tool, arguments: args }),
+  });
+  const data = await res.json() as T & { success: boolean; error?: string; code?: string };
+  if (!data.success) {
+    throw Object.assign(new Error(data.error ?? 'Server error'), { code: data.code });
+  }
+  return data;
+}
 
 interface SaveBookmarkPayload {
   title: string;
   url: string;
-  tags: string[];
   notes: string;
+  prompt?: string;
   folderPageId?: string | null;
 }
 
@@ -29,7 +43,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch((err: Error & { code?: string }) =>
         sendResponse({ success: false, error: err.message, code: err.code })
       );
-    return true; // Keep channel open for async response
+    return true;
   }
 
   if (message.type === 'FETCH_RECENT') {
@@ -47,81 +61,39 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 });
 
-async function handleSaveBookmark({ title, url, tags, notes, folderPageId }: SaveBookmarkPayload): Promise<MessageResponse> {
-  const config = await getConfig();
-  if (!config.apiToken || !config.databaseId) {
-    return { success: false, error: 'NOT_CONFIGURED' };
-  }
-
-  const page = await createBookmark({ ...config, title, url, tags, notes, folderPageId });
+async function handleSaveBookmark({ title, url, notes, prompt, folderPageId }: SaveBookmarkPayload): Promise<MessageResponse> {
+  const result = await callServer<{ pageId: string }>('save_bookmark', {
+    title, url, notes,
+    ...(prompt ? { prompt } : {}),
+    ...(folderPageId ? { folderPageId } : {}),
+  });
 
   const cached = await getCachedBookmarks();
   const newEntry: Bookmark = {
-    notionPageId: page.id,
-    title,
-    url,
-    tags,
-    notes,
-    dateAdded: new Date().toISOString()
+    notionPageId: result.pageId,
+    title, url, notes,
+    dateAdded: new Date().toISOString(),
   };
   await setCachedBookmarks([newEntry, ...cached].slice(0, CACHE_SIZE));
 
-  // Visual feedback badge
   chrome.action.setBadgeText({ text: '✓' });
   chrome.action.setBadgeBackgroundColor({ color: '#00b894' });
   setTimeout(() => chrome.action.setBadgeText({ text: '' }), 3000);
 
-  return { success: true, pageId: page.id };
+  return { success: true, pageId: result.pageId };
 }
 
 async function handleFetchFolders(): Promise<MessageResponse> {
-  const config = await getConfig();
-  if (!config.apiToken || !config.folderDatabaseId) {
-    return { success: false, error: 'NO_FOLDER_DATABASE' };
-  }
-  const pages = await queryFolders({ apiToken: config.apiToken, databaseId: config.folderDatabaseId });
-  const folders: Folder[] = pages.pages.map(page => {
-    const props = page.properties as Record<string, any>;
-
-    const titleProp = Object.values(props).find((p: any) => p.type === 'title');
-    const name: string = titleProp?.title?.[0]?.plain_text ?? 'Untitled';
-
-    const idProp = Object.values(props).find((p: any) => p.type === 'unique_id');
-    const id: number | null = idProp?.unique_id?.number ?? null;
-
-    const parentProp: any =
-      props['Parent ID'] ??
-      Object.entries(props).find(([k, v]: [string, any]) =>
-        v.type === 'relation' && k.toLowerCase().includes('parent')
-      )?.[1];
-    const parentId: string | null = parentProp?.number ?? null;
-
-    return { pageId: page.id as string, name, parentId, id };
-  });
-  return { success: true, folders };
+  return callServer('fetch_folders');
 }
 
 async function handleFetchRecent({ forceRefresh = false }: FetchRecentPayload): Promise<MessageResponse> {
-  const config = await getConfig();
-  if (!config.apiToken || !config.databaseId) {
-    return { success: false, error: 'NOT_CONFIGURED' };
-  }
-
   if (!forceRefresh) {
     const cached = await getCachedBookmarks();
     if (cached.length > 0) return { success: true, bookmarks: cached, source: 'cache' };
   }
 
-  const data = await queryRecentBookmarks({ ...config, pageSize: QUERY_PAGE_SIZE });
-  const bookmarks: Bookmark[] = (data.results as any[]).map(page => ({
-    notionPageId: page.id,
-    title: page.properties?.Title?.title?.[0]?.plain_text ?? 'Untitled',
-    url: page.properties?.URL?.url ?? '',
-    tags: page.properties?.Tags?.multi_select?.map((t: { name: string }) => t.name) ?? [],
-    notes: page.properties?.Notes?.rich_text?.[0]?.plain_text ?? '',
-    dateAdded: page.properties?.['Date Added']?.date?.start ?? page.created_time
-  }));
-
-  await setCachedBookmarks(bookmarks);
-  return { success: true, bookmarks, source: 'api' };
+  const result = await callServer<{ bookmarks: Bookmark[] }>('fetch_recent_bookmarks');
+  await setCachedBookmarks(result.bookmarks);
+  return { success: true, bookmarks: result.bookmarks, source: 'api' };
 }

@@ -30,8 +30,8 @@ function copyStatic(): void {
   copyDir('icons');
   copyDir('styles');
 
-  // Copy HTML and CSS from popup and options (not JS/TS — those get bundled)
-  for (const dir of ['popup', 'options']) {
+  // Copy HTML and CSS from popup (not JS/TS — those get bundled)
+  for (const dir of ['popup']) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.name.endsWith('.js') && !entry.name.endsWith('.ts')) {
@@ -47,7 +47,6 @@ const buildOptions: BuildOptions = {
   entryPoints: [
     'background/service-worker.ts',
     'popup/popup.ts',
-    'options/options.ts',
   ],
   bundle: true,
   outdir,

@@ -42,7 +42,7 @@
         </svg>
         <h3>Setup Required</h3>
         <p>Connect your Notion workspace to start saving bookmarks.</p>
-        <button id="btn-open-options" class="btn btn-primary">Open Settings</button>
+        <p>Set the <code>variables</code> in <code>manifest.json</code> and reload the extension.</p>
       </div>
     </div>
 
@@ -71,18 +71,13 @@
 
         <div class="field">
           <label for="input-prompt">Prompt</label>
-          <textarea id="input-prompt" rows="3">Summarize the content of this page</textarea>
+          <textarea id="input-prompt" rows="3">Please provide a concise summary of the content on this webpage</textarea>
           <p class="field-hint">This prompt is for Notion AI to generate the content of this page</p>
         </div>
 
         <details class="accordion">
           <summary>Show more fields</summary>
           <div class="accordion-body">
-            <div class="field">
-              <label for="input-tags">Tags <span class="label-hint">(comma-separated)</span></label>
-              <input type="text" id="input-tags" placeholder="dev, research, tool">
-            </div>
-
             <div class="field">
               <label for="input-notes">Notes</label>
               <textarea id="input-notes" rows="3" placeholder="Optional notes..."></textarea>
@@ -122,17 +117,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Footer -->
-    <footer class="footer">
-      <button id="btn-options" class="footer-link">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-        Settings
-      </button>
-    </footer>
 
   </div>
 

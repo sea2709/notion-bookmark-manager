@@ -1,22 +1,19 @@
-import type { NotionConfig, Bookmark, Folder, FolderNode } from '../shared/types';
+import type { Bookmark, Folder, FolderNode } from '../shared/types';
 
 // Elements
 const viewNotConfigured = document.getElementById('view-not-configured') as HTMLElement;
 const viewSave          = document.getElementById('view-save') as HTMLElement;
 const viewRecent        = document.getElementById('view-recent') as HTMLElement;
 const btnToggleView     = document.getElementById('btn-toggle-view') as HTMLButtonElement;
-const btnOpenOptions    = document.getElementById('btn-open-options') as HTMLButtonElement;
-const btnOptions        = document.getElementById('btn-options') as HTMLButtonElement;
 const btnSave           = document.getElementById('btn-save') as HTMLButtonElement;
 const btnRefresh        = document.getElementById('btn-refresh') as HTMLButtonElement;
 const inputTitle        = document.getElementById('input-title') as HTMLInputElement;
 const inputUrl          = document.getElementById('input-url') as HTMLInputElement;
-const inputTags         = document.getElementById('input-tags') as HTMLInputElement;
 const inputNotes        = document.getElementById('input-notes') as HTMLTextAreaElement;
+const inputPrompt       = document.getElementById('input-prompt') as HTMLTextAreaElement;
 const saveStatus        = document.getElementById('save-status') as HTMLElement;
 const recentList        = document.getElementById('recent-list') as HTMLElement;
 const folderTree        = document.getElementById('folder-tree') as HTMLElement;
-const fieldFolder       = document.getElementById('field-folder') as HTMLElement;
 
 type ViewName = 'save' | 'recent' | 'not-configured';
 
@@ -26,41 +23,15 @@ let selectedFolderId: string | null = null;
 
 // Init
 async function init(): Promise<void> {
-  const [config, tab] = await Promise.all([
-    sendMessage<unknown>({ type: 'FETCH_RECENT', payload: { forceRefresh: false } })
-      .catch(() => null)
-      .then(() => getConfig()),
-    getActiveTab()
-  ]);
+  currentTab = await getActiveTab();
 
-  currentTab = tab;
-
-  if (!config.apiToken || !config.databaseId) {
-    showView('not-configured');
-    return;
-  }
-
-  if (tab) {
-    inputTitle.value = tab.title ?? '';
-    inputUrl.value = tab.url ?? '';
+  if (currentTab) {
+    inputTitle.value = currentTab.title ?? '';
+    inputUrl.value = currentTab.url ?? '';
   }
 
   showView('save');
-
-  if (config.folderDatabaseId) {
-    loadFolderTree();
-  } else {
-    fieldFolder.classList.add('hidden');
-  }
-}
-
-async function getConfig(): Promise<NotionConfig> {
-  return new Promise(resolve => {
-    chrome.storage.sync.get('notionConfig', (items: { [key: string]: unknown }) => {
-      const cfg = items['notionConfig'] as NotionConfig | undefined;
-      resolve(cfg ?? { apiToken: '', databaseId: '' });
-    });
-  });
+  loadFolderTree();
 }
 
 async function getActiveTab(): Promise<chrome.tabs.Tab | null> {
@@ -190,8 +161,8 @@ btnSave.addEventListener('click', async () => {
   }
 
   const url = currentTab?.url ?? inputUrl.value.trim();
-  const tags = inputTags.value.split(',').map(t => t.trim()).filter(Boolean);
   const notes = inputNotes.value.trim();
+  const prompt = inputPrompt.value.trim();
 
   setSaving(true);
   hideSaveStatus();
@@ -199,14 +170,13 @@ btnSave.addEventListener('click', async () => {
   try {
     const response = await sendMessage<SaveResponse>({
       type: 'SAVE_BOOKMARK',
-      payload: { title, url, tags, notes, folderPageId: selectedFolderId }
+      payload: { title, url, notes, prompt, folderPageId: selectedFolderId }
     });
 
     if (response.success) {
       showSaveStatus('success', 'Saved to Notion!');
       setTimeout(() => {
         hideSaveStatus();
-        inputTags.value = '';
         inputNotes.value = '';
       }, 2000);
     } else {
@@ -310,10 +280,6 @@ function renderBookmarks(bookmarks: Bookmark[]): void {
     const domain = getDomain(b.url);
     const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=16` : '';
     const dateStr = formatDate(b.dateAdded);
-    const tagsHtml = b.tags.slice(0, 3).map(t =>
-      `<span class="bookmark-tag">${escapeHtml(t)}</span>`
-    ).join('');
-
     return `
       <div class="bookmark-item">
         ${faviconUrl
@@ -324,7 +290,6 @@ function renderBookmarks(bookmarks: Bookmark[]): void {
           <a class="bookmark-title" href="${escapeHtml(b.url)}" target="_blank" title="${escapeHtml(b.title)}">${escapeHtml(b.title)}</a>
           <div class="bookmark-url">${escapeHtml(domain || b.url)}</div>
           <div class="bookmark-meta">
-            ${tagsHtml}
             <span class="bookmark-date">${dateStr}</span>
           </div>
         </div>
@@ -370,8 +335,6 @@ btnToggleView.addEventListener('click', () => {
 });
 
 btnRefresh.addEventListener('click', () => loadRecentBookmarks(true));
-btnOpenOptions.addEventListener('click', () => chrome.runtime.openOptionsPage());
-btnOptions.addEventListener('click', () => chrome.runtime.openOptionsPage());
 
 // Start
 init();

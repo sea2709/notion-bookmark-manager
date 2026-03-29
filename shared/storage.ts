@@ -1,19 +1,4 @@
-import type { NotionConfig, Bookmark } from './types';
-
-export async function getConfig(): Promise<NotionConfig> {
-  return new Promise(resolve => {
-    chrome.storage.sync.get('notionConfig', (items: { [key: string]: unknown }) => {
-      const notionConfig = items['notionConfig'] as NotionConfig | undefined;
-      resolve(notionConfig ?? { apiToken: '', databaseId: '', folderDatabaseId: '' });
-    });
-  });
-}
-
-export async function setConfig(config: NotionConfig): Promise<void> {
-  return new Promise(resolve => {
-    chrome.storage.sync.set({ notionConfig: config }, resolve);
-  });
-}
+import type { Bookmark } from './types';
 
 export async function getCachedBookmarks(): Promise<Bookmark[]> {
   return new Promise(resolve => {

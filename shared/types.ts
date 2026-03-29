@@ -1,14 +1,7 @@
-export interface NotionConfig {
-  apiToken: string;
-  databaseId: string;
-  folderDatabaseId?: string;
-}
-
 export interface Bookmark {
   notionPageId: string;
   title: string;
   url: string;
-  tags: string[];
   notes: string;
   dateAdded: string;
 }
