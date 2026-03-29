@@ -1,25 +1,24 @@
 import type { Bookmark, Folder, FolderNode } from '../shared/types';
 
 // Elements
-const viewNotConfigured = document.getElementById('view-not-configured') as HTMLElement;
-const viewSave          = document.getElementById('view-save') as HTMLElement;
-const viewRecent        = document.getElementById('view-recent') as HTMLElement;
-const viewSearch        = document.getElementById('view-search') as HTMLElement;
-const btnToggleView     = document.getElementById('btn-toggle-view') as HTMLButtonElement;
-const btnSearchView     = document.getElementById('btn-search-view') as HTMLButtonElement;
-const btnSave           = document.getElementById('btn-save') as HTMLButtonElement;
-const btnRefresh        = document.getElementById('btn-refresh') as HTMLButtonElement;
-const inputTitle        = document.getElementById('input-title') as HTMLInputElement;
-const inputUrl          = document.getElementById('input-url') as HTMLInputElement;
-const inputNotes        = document.getElementById('input-notes') as HTMLTextAreaElement;
-const inputPrompt       = document.getElementById('input-prompt') as HTMLTextAreaElement;
-const inputSearch       = document.getElementById('input-search') as HTMLInputElement;
-const saveStatus        = document.getElementById('save-status') as HTMLElement;
-const recentList        = document.getElementById('recent-list') as HTMLElement;
-const searchResults     = document.getElementById('search-results') as HTMLElement;
-const folderTree        = document.getElementById('folder-tree') as HTMLElement;
+const viewSave      = document.getElementById('view-save') as HTMLElement;
+const viewBrowse    = document.getElementById('view-browse') as HTMLElement;
+const viewSearch    = document.getElementById('view-search') as HTMLElement;
+const btnToggleView = document.getElementById('btn-toggle-view') as HTMLButtonElement;
+const btnSearchView = document.getElementById('btn-search-view') as HTMLButtonElement;
+const btnSave       = document.getElementById('btn-save') as HTMLButtonElement;
+const btnRefresh    = document.getElementById('btn-refresh') as HTMLButtonElement;
+const inputTitle    = document.getElementById('input-title') as HTMLInputElement;
+const inputUrl      = document.getElementById('input-url') as HTMLInputElement;
+const inputNotes    = document.getElementById('input-notes') as HTMLTextAreaElement;
+const inputPrompt   = document.getElementById('input-prompt') as HTMLTextAreaElement;
+const inputSearch   = document.getElementById('input-search') as HTMLInputElement;
+const saveStatus    = document.getElementById('save-status') as HTMLElement;
+const browseList    = document.getElementById('browse-list') as HTMLElement;
+const searchResults = document.getElementById('search-results') as HTMLElement;
+const folderTree    = document.getElementById('folder-tree') as HTMLElement;
 
-type ViewName = 'save' | 'recent' | 'search' | 'not-configured';
+type ViewName = 'save' | 'browse' | 'search';
 
 let currentView: ViewName = 'save';
 let currentTab: chrome.tabs.Tab | null = null;
@@ -132,19 +131,16 @@ function renderNodes(nodes: FolderNode[], depth: number): HTMLUListElement {
 // Views
 function showView(view: ViewName): void {
   currentView = view;
-  viewNotConfigured.classList.add('hidden');
   viewSave.classList.add('hidden');
-  viewRecent.classList.add('hidden');
+  viewBrowse.classList.add('hidden');
   viewSearch.classList.add('hidden');
   btnToggleView.classList.remove('active');
   btnSearchView.classList.remove('active');
 
-  if (view === 'not-configured') {
-    viewNotConfigured.classList.remove('hidden');
-  } else if (view === 'save') {
+  if (view === 'save') {
     viewSave.classList.remove('hidden');
-  } else if (view === 'recent') {
-    viewRecent.classList.remove('hidden');
+  } else if (view === 'browse') {
+    viewBrowse.classList.remove('hidden');
     btnToggleView.classList.add('active');
     loadBrowseView();
   } else if (view === 'search') {
@@ -202,10 +198,6 @@ btnSave.addEventListener('click', async () => {
 });
 
 function handleSaveError(error?: string, code?: string): void {
-  if (error === 'NOT_CONFIGURED') {
-    showView('not-configured');
-    return;
-  }
   if (code === 'unauthorized') {
     showSaveStatus('error', 'Invalid API token. Check your settings.');
     return;
@@ -257,7 +249,7 @@ interface FetchFoldersResponse {
 }
 
 async function loadBrowseView(forceRefresh = false): Promise<void> {
-  recentList.innerHTML = `
+  browseList.innerHTML = `
     <div class="loading-state">
       <div class="spinner"></div>
       <span>Loading...</span>
@@ -270,22 +262,21 @@ async function loadBrowseView(forceRefresh = false): Promise<void> {
     ]);
 
     if (!bookmarkRes.success) {
-      if (bookmarkRes.error === 'NOT_CONFIGURED') { showView('not-configured'); return; }
-      recentList.innerHTML = `<div class="empty-recent"><span>Failed to load bookmarks.</span></div>`;
+      browseList.innerHTML = `<div class="empty-recent"><span>Failed to load bookmarks.</span></div>`;
       return;
     }
 
     renderBrowseTree(bookmarkRes.bookmarks ?? [], folderRes.success ? (folderRes.folders ?? []) : []);
   } catch {
-    recentList.innerHTML = `<div class="empty-recent"><span>Connection failed.</span></div>`;
+    browseList.innerHTML = `<div class="empty-recent"><span>Connection failed.</span></div>`;
   }
 }
 
 function renderBrowseTree(bookmarks: Bookmark[], folders: Folder[]): void {
-  recentList.innerHTML = '';
+  browseList.innerHTML = '';
 
   if (!bookmarks.length) {
-    recentList.innerHTML = `
+    browseList.innerHTML = `
       <div class="empty-recent">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-border)" stroke-width="1.5">
           <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
@@ -382,7 +373,7 @@ function renderBrowseTree(bookmarks: Bookmark[], folders: Folder[]): void {
     root.appendChild(renderNodes([node], 0));
   }
 
-  recentList.appendChild(root);
+  browseList.appendChild(root);
 }
 
 function renderBookmarkItems(bookmarks: Bookmark[], depth: number): HTMLUListElement {
@@ -468,7 +459,7 @@ async function executeSearch(): Promise<void> {
 
 // Event listeners
 btnToggleView.addEventListener('click', () => {
-  showView(currentView === 'recent' ? 'save' : 'recent');
+  showView(currentView === 'browse' ? 'save' : 'browse');
 });
 
 btnSearchView.addEventListener('click', () => {

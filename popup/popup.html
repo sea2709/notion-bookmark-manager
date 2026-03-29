@@ -39,20 +39,6 @@
       </div>
     </header>
 
-    <!-- Not Configured State -->
-    <div id="view-not-configured" class="view hidden">
-      <div class="empty-state">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <h3>Setup Required</h3>
-        <p>Connect your Notion workspace to start saving bookmarks.</p>
-        <p>Set the <code>variables</code> in <code>manifest.json</code> and reload the extension.</p>
-      </div>
-    </div>
-
     <!-- Save View -->
     <div id="view-save" class="view hidden">
       <div class="form-body">
@@ -79,7 +65,7 @@
         <div class="field">
           <label for="input-prompt">Prompt</label>
           <textarea id="input-prompt" rows="3">Please provide a concise summary of the content on this webpage</textarea>
-          <p class="field-hint">This prompt is for Notion AI to generate the content of this page</p>
+          <p class="field-hint">This prompt is for Giemini to generate the content of this page</p>
         </div>
 
         <details class="accordion">
@@ -106,8 +92,8 @@
       </div>
     </div>
 
-    <!-- Recent Bookmarks View -->
-    <div id="view-recent" class="view hidden">
+    <!-- Browse View -->
+    <div id="view-browse" class="view hidden">
       <div class="recent-toolbar">
         <span class="recent-title">My Bookmarks</span>
         <button id="btn-refresh" class="btn-icon" title="Refresh from Notion">
@@ -117,7 +103,7 @@
           </svg>
         </button>
       </div>
-      <div id="recent-list" class="recent-list">
+      <div id="browse-list" class="recent-list">
         <div class="loading-state">
           <div class="spinner"></div>
           <span>Loading...</span>
