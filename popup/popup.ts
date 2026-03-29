@@ -161,6 +161,7 @@ interface SaveResponse {
 }
 
 btnSave.addEventListener('click', async () => {
+  loadFolderTree();
   const title = inputTitle.value.trim();
   if (!title) {
     showSaveStatus('error', 'Please enter a title.');

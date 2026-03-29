@@ -123,7 +123,7 @@ export interface QueryFoldersParams {
 export async function queryFolders({
   apiToken,
   databaseId,
-}: QueryFoldersParams): Promise<{ pages: unknown[]; titlePropName: string; parentPropName: string }> {
+}: QueryFoldersParams): Promise<{ pages: unknown[]; }> {
   const notion = createClient(apiToken) as ExtendedClient;
   const database = await notion.databases.retrieve({ database_id: databaseId }) as unknown as {
     data_sources: Array<{ id: string }>;
@@ -134,11 +134,6 @@ export async function queryFolders({
     properties: Record<string, { type: string }>;
     id: string
   };
-
-  const titlePropName = Object.entries(datasource.properties)
-    .find(([, v]) => v.type === 'title')?.[0] ?? 'Name';
-  const parentPropName = Object.entries(datasource.properties)
-    .find(([k, v]) => v.type === 'relation' && k.toLowerCase().includes('parent'))?.[0] ?? 'Parent ID';
 
   const pages: unknown[] = [];
   let cursor: string | undefined;
@@ -151,7 +146,7 @@ export async function queryFolders({
     pages.push(...response.results);
     cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
   } while (cursor);
-  return { pages, titlePropName, parentPropName };
+  return { pages };
 }
 
 export interface CreateFolderParams {

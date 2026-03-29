@@ -119,10 +119,14 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
   },
 
   async fetch_folders(_args) {
-    const { pages, titlePropName, parentPropName } = await queryFolders({
+    const { pages } = await queryFolders({
       apiToken: getApiToken(),
       databaseId: getFolderDatabaseId(),
     });
+
+    const titlePropName = "Name";
+    const parentPropName = "Parent ID";
+    const uniqueIdPropName = "ID";
 
     const folders: Folder[] = (pages as Array<{
       id: string;
@@ -135,11 +139,15 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
     }>).map(page => {
       const titleProp = page.properties[titlePropName];
       const parentProp = page.properties[parentPropName];
-      const uniqueIdProp = Object.values(page.properties).find(p => p.type === 'unique_id');
+      const uniqueIdProp = page.properties[uniqueIdPropName];
+      let parentPage = null;
+      if (parentProp?.number && uniqueIdProp) {
+        parentPage = pages.find((element) => element.properties[uniqueIdPropName]?.unique_id?.number == parentProp?.number)
+      }
       return {
         pageId: page.id,
         name: titleProp?.title?.[0]?.plain_text ?? '',
-        parentId: parentProp?.number ?? null,
+        parentId: parentPage?.id ?? null,
         id: uniqueIdProp?.unique_id?.number ?? null,
       };
     });
