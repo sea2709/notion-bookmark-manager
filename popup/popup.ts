@@ -492,6 +492,15 @@ function getDomain(url: string): string {
 }
 
 
+function renderMarkdown(text: string): string {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_, label, url) =>
+      `<a class="search-result-link" href="${url}" target="_blank">${label}</a>`
+    )
+    .replace(/\n/g, '<br>');
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -519,7 +528,7 @@ async function executeSearch(): Promise<void> {
       searchResults.innerHTML = `<div class="empty-recent"><span>Search failed.</span></div>`;
       return;
     }
-    searchResults.innerHTML = `<div class="search-result-text">${escapeHtml(res.text ?? '')}</div>`;
+    searchResults.innerHTML = `<div class="search-result-text">${renderMarkdown(res.text ?? '')}</div>`;
   } catch {
     searchResults.innerHTML = `<div class="empty-recent"><span>Connection failed.</span></div>`;
   }

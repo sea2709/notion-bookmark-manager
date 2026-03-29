@@ -262,7 +262,13 @@ export async function searchBookmark({
 
   await notionClient.connect(transport);
 
-  const prompt = `Search for pages under the database with the ID ${databaseId} mentioning '${keyword}'`;
+  const prompt = `Search for pages under the database with the ID ${databaseId} mentioning '${keyword}'.
+For each matching page, retrieve its URL property and read its content.
+Format your response as a list. For each result:
+- Write the page name as a markdown link using its URL property: [Page Name](https://...)
+- On the next line, include a single short sentence (max 20 words) highlighting the most relevant part of the page content related to '${keyword}'
+If a page has no URL property, mention the name as plain text. If there is no relevant highlight, omit that line.`;
+  
   const response = await ai.models.generateContent({
     model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
     contents: prompt,
@@ -273,30 +279,6 @@ export async function searchBookmark({
 
   console.log('response', response.text);
   return { text: response.text ?? '' };
-
-  // const notion = createClient(apiToken);
-
-  // const results: unknown[] = [];
-  // let cursor: string | undefined;
-  // do {
-  //   const response = await notion.search({
-  //     query: keyword,
-  //     filter: { value: 'page', property: 'object' },
-  //     sort: { direction: 'descending', timestamp: 'last_edited_time' },
-  //     start_cursor: cursor,
-  //     page_size: 100,
-  //   }) as { results: Array<{ parent?: { database_id?: string } }>; has_more: boolean; next_cursor: string | null };
-
-  //   const normalizedDbId = databaseId.replace(/-/g, '');
-  //   for (const page of response.results) {
-  //     const parentDbId = (page.parent?.database_id ?? '').replace(/-/g, '');
-  //     if (parentDbId === normalizedDbId) results.push(page);
-  //   }
-
-  //   cursor = response.has_more ? (response.next_cursor ?? undefined) : undefined;
-  // } while (cursor);
-
-  // return { results };
 }
 
 export interface ValidateCredentialsParams {

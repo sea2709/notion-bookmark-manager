@@ -404,7 +404,15 @@ textarea {
   font-size: var(--font-size-sm);
   color: var(--color-text);
   line-height: 1.6;
-  white-space: pre-wrap;
+}
+
+.search-result-link {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.search-result-link:hover {
+  text-decoration: underline;
 }
 
 .recent-toolbar {
