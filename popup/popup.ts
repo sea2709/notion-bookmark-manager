@@ -4,6 +4,7 @@ import type { Bookmark, Folder, FolderNode } from '../shared/types';
 const viewSave      = document.getElementById('view-save') as HTMLElement;
 const viewBrowse    = document.getElementById('view-browse') as HTMLElement;
 const viewSearch    = document.getElementById('view-search') as HTMLElement;
+const btnManageView = document.getElementById('btn-manage-view') as HTMLButtonElement;
 const btnToggleView = document.getElementById('btn-toggle-view') as HTMLButtonElement;
 const btnSearchView = document.getElementById('btn-search-view') as HTMLButtonElement;
 const btnSave       = document.getElementById('btn-save') as HTMLButtonElement;
@@ -134,11 +135,13 @@ function showView(view: ViewName): void {
   viewSave.classList.add('hidden');
   viewBrowse.classList.add('hidden');
   viewSearch.classList.add('hidden');
+  btnManageView.classList.remove('active');
   btnToggleView.classList.remove('active');
   btnSearchView.classList.remove('active');
 
   if (view === 'save') {
     viewSave.classList.remove('hidden');
+    btnManageView.classList.add('active');
   } else if (view === 'browse') {
     viewBrowse.classList.remove('hidden');
     btnToggleView.classList.add('active');
@@ -455,6 +458,10 @@ async function executeSearch(): Promise<void> {
 // Event listeners
 btnToggleView.addEventListener('click', () => {
   showView(currentView === 'browse' ? 'save' : 'browse');
+});
+
+btnManageView.addEventListener('click', () => {
+  showView('save');
 });
 
 btnSearchView.addEventListener('click', () => {
