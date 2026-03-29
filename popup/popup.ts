@@ -310,10 +310,6 @@ function renderBrowseTree(bookmarks: Bookmark[], folders: Folder[]): void {
     }
   }
 
-  function hasBrowseContent(node: FolderNode): boolean {
-    return node.bookmarks.length > 0 || node.children.some(hasBrowseContent);
-  }
-
   const chevronSvg = `<svg class="folder-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`;
 
   function makeFolderHeader(label: string, iconSvg: string, depth: number): { header: HTMLDivElement; children: HTMLDivElement } {
@@ -338,7 +334,6 @@ function renderBrowseTree(bookmarks: Bookmark[], folders: Folder[]): void {
     const ul = document.createElement('ul');
     ul.className = 'folder-list';
     for (const node of nodes) {
-      if (!hasBrowseContent(node)) continue;
       const li = document.createElement('li');
 
       const folderIcon = `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>`;
@@ -370,7 +365,6 @@ function renderBrowseTree(bookmarks: Bookmark[], folders: Folder[]): void {
 
   // Folders
   for (const node of roots) {
-    if (!hasBrowseContent(node)) continue;
     root.appendChild(renderNodes([node], 0));
   }
 
