@@ -315,10 +315,11 @@ function renderBrowseTree(bookmarks: Bookmark[], folders: Folder[]): void {
 
   const chevronSvg = `<svg class="folder-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`;
 
-  function makeFolderHeader(label: string, iconSvg: string, depth: number): { header: HTMLDivElement; children: HTMLDivElement } {
+  function makeFolderHeader(label: string, iconSvg: string, depth: number, count = 0): { header: HTMLDivElement; children: HTMLDivElement } {
     const header = document.createElement('div');
     header.className = `folder-item depth-${depth}`;
-    header.innerHTML = `${iconSvg}<span>${label}</span>${chevronSvg}`;
+    const countBadge = count > 0 ? `<span class="folder-count">(${count} bookmark${count === 1 ? '' : 's'})</span>` : '';
+    header.innerHTML = `${iconSvg}<span>${label}</span>${countBadge}${chevronSvg}`;
 
     header.classList.add('collapsed');
 
@@ -340,7 +341,7 @@ function renderBrowseTree(bookmarks: Bookmark[], folders: Folder[]): void {
       const li = document.createElement('li');
 
       const folderIcon = `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>`;
-      const { header, children } = makeFolderHeader(escapeHtml(node.name), folderIcon, depth);
+      const { header, children } = makeFolderHeader(escapeHtml(node.name), folderIcon, depth, node.bookmarks.length);
       li.appendChild(header);
 
       if (node.bookmarks.length) children.appendChild(renderBookmarkItems(node.bookmarks, depth + 1));
@@ -359,7 +360,7 @@ function renderBrowseTree(bookmarks: Bookmark[], folders: Folder[]): void {
   if (unfiled.length) {
     const li = document.createElement('li');
     const unfiledIcon = `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
-    const { header, children } = makeFolderHeader('Unfiled', unfiledIcon, 0);
+    const { header, children } = makeFolderHeader('Unfiled', unfiledIcon, 0, unfiled.length);
     children.appendChild(renderBookmarkItems(unfiled, 1));
     li.appendChild(header);
     li.appendChild(children);

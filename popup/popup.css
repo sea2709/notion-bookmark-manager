@@ -229,6 +229,12 @@ body {
   transform: rotate(-90deg);
 }
 
+.folder-count {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
 .folder-children {
   overflow: hidden;
 }
