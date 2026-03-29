@@ -52,8 +52,6 @@ interface SaveBookmarkArgs {
 interface CreateFolderArgs {
   name: string;
   parentPageId?: string | null;
-  titlePropName?: string;
-  parentPropName?: string;
 }
 
 interface RenameFolderArgs {
@@ -157,11 +155,11 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
   },
 
   async create_folder(args) {
-    const { name, parentPageId, titlePropName, parentPropName } = args as CreateFolderArgs;
+    const { name, parentPageId } = args as CreateFolderArgs;
     await createFolder({
       apiToken: getApiToken(),
       databaseId: getFolderDatabaseId(),
-      name, parentPageId, titlePropName, parentPropName,
+      name, parentPageId
     });
     return { success: true };
   },

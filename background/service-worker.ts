@@ -33,6 +33,11 @@ interface SearchBookmarksPayload {
   keyword: string;
 }
 
+interface CreateFolderPayload {
+  name: string;
+  parentPageId?: string | null;
+}
+
 interface MessageResponse {
   success: boolean;
   error?: string;
@@ -70,6 +75,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch((err: Error) => sendResponse({ success: false, error: err.message }));
     return true;
   }
+
+  if (message.type === 'CREATE_FOLDER') {
+    handleCreateFolder(message.payload as CreateFolderPayload)
+      .then(sendResponse)
+      .catch((err: Error) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
 });
 
 async function handleSaveBookmark({ title, url, notes, prompt, folderPageId }: SaveBookmarkPayload): Promise<MessageResponse> {
@@ -100,6 +112,10 @@ async function handleFetchFolders(): Promise<MessageResponse> {
 
 async function handleSearchBookmarks({ keyword }: SearchBookmarksPayload): Promise<MessageResponse> {
   return callServer('search_bookmarks', { keyword });
+}
+
+async function handleCreateFolder({ name, parentPageId }: CreateFolderPayload): Promise<MessageResponse> {
+  return callServer('create_folder', { name, ...(parentPageId ? { parentPageId } : {}) });
 }
 
 async function handleFetchRecent({ forceRefresh = false }: FetchRecentPayload): Promise<MessageResponse> {

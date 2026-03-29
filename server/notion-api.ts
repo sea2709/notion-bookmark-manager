@@ -154,25 +154,29 @@ export interface CreateFolderParams {
   databaseId: string;
   name: string;
   parentPageId?: string | null;
-  titlePropName?: string;
-  parentPropName?: string;
 }
 
 export async function createFolder({
   apiToken,
   databaseId,
   name,
-  parentPageId,
-  titlePropName = 'Name',
-  parentPropName = 'Parent ID',
-}: CreateFolderParams): Promise<unknown> {
+  parentPageId}: CreateFolderParams): Promise<unknown> {
+  const titlePropName = 'Name';
+  const parentPropName = 'Parent ID';
+  const uniqueIdPropName = "ID";
   const notion = createClient(apiToken);
-  const properties: Record<string, unknown> = {
+  
+
+  let properties: Record<string, unknown> = {
     [titlePropName]: { title: [{ text: { content: name } }] }
   };
+
+  let parentPage = null;
   if (parentPageId) {
-    properties[parentPropName] = { relation: [{ id: parentPageId }] };
+    parentPage = await notion.pages.retrieve({ page_id: parentPageId });
+    properties[parentPropName] = { number: parentPage?.properties[uniqueIdPropName].unique_id.number };
   }
+
   return notion.pages.create({
     parent: { database_id: databaseId },
     properties: properties as Parameters<typeof notion.pages.create>[0]['properties']
