@@ -56,16 +56,23 @@ function sendMessage<T>(message: object): Promise<T> {
 }
 
 // Folder tree
-async function loadFolderTree(): Promise<void> {
+async function loadFolderTree(highlightPageId?: string): Promise<void> {
   folderTree.innerHTML = `<div class="folder-loading"><div class="spinner"></div><span>Loading folders...</span></div>`;
   try {
     const response = await sendMessage<{ success: boolean; folders?: Folder[] }>({ type: 'FETCH_FOLDERS' });
-    console.log('response', response);
     if (!response.success) {
       folderTree.innerHTML = `<div class="folder-loading"><span>Failed to load folders.</span></div>`;
       return;
     }
     renderFolderTree(response.folders ?? []);
+    if (highlightPageId) {
+      const item = folderTree.querySelector<HTMLElement>(`.folder-item[data-page-id="${highlightPageId}"]`);
+      if (item) {
+        item.classList.add('selected');
+        selectedFolderId = highlightPageId;
+        item.scrollIntoView({ block: 'nearest' });
+      }
+    }
   } catch {
     folderTree.innerHTML = `<div class="folder-loading"><span>Connection failed.</span></div>`;
   }
@@ -86,24 +93,25 @@ function buildTree(folders: Folder[]): FolderNode[] {
   return roots;
 }
 
+folderTree.addEventListener('click', (e: MouseEvent) => {
+  if ((e.target as Element).closest('.folder-item-add, .folder-item-delete, .folder-inline-form')) return;
+  const item = (e.target as Element).closest<HTMLElement>('.folder-item');
+  if (!item) return;
+  folderTree.querySelectorAll('.folder-item.selected').forEach(el => el.classList.remove('selected'));
+  if (selectedFolderId === item.dataset['pageId']) {
+    selectedFolderId = null;
+  } else {
+    item.classList.add('selected');
+    selectedFolderId = item.dataset['pageId'] ?? null;
+  }
+});
+
 function renderFolderTree(folders: Folder[]): void {
+  selectedFolderId = null;
   const roots = buildTree(folders);
   folderTree.innerHTML = '';
   if (roots.length) folderTree.appendChild(renderNodes(roots, 0));
   folderTree.appendChild(makeNewFolderRow(null, 0));
-
-  folderTree.addEventListener('click', (e: MouseEvent) => {
-    if ((e.target as Element).closest('.folder-item-add, .folder-inline-form')) return;
-    const item = (e.target as Element).closest<HTMLElement>('.folder-item');
-    if (!item) return;
-    folderTree.querySelectorAll('.folder-item.selected').forEach(el => el.classList.remove('selected'));
-    if (selectedFolderId === item.dataset['pageId']) {
-      selectedFolderId = null;
-    } else {
-      item.classList.add('selected');
-      selectedFolderId = item.dataset['pageId'] ?? null;
-    }
-  });
 }
 
 function renderNodes(nodes: FolderNode[], depth: number): HTMLUListElement {
@@ -119,7 +127,15 @@ function renderNodes(nodes: FolderNode[], depth: number): HTMLUListElement {
     const icon = node.children.length
       ? `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>`
       : `<svg class="folder-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
-    item.innerHTML = `${icon}<span>${escapeHtml(node.name)}</span>`;
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = node.name;
+    item.innerHTML = icon;
+    item.appendChild(nameSpan);
+
+    nameSpan.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      showRenameForm(item, nameSpan, node.pageId, node.name);
+    });
 
     const addBtn = document.createElement('button');
     addBtn.className = 'folder-item-add';
@@ -129,7 +145,25 @@ function renderNodes(nodes: FolderNode[], depth: number): HTMLUListElement {
       e.stopPropagation();
       showInlineFolderForm(li, node.pageId, depth + 1);
     });
+
+    const isEmpty = node.children.length === 0 && node.bookmarks.length === 0;
+    const delBtn = document.createElement('button');
+    delBtn.className = 'folder-item-delete';
+    delBtn.title = isEmpty ? 'Delete folder' : 'Cannot delete: folder is not empty';
+    delBtn.disabled = !isEmpty;
+    delBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+    delBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Delete "${node.name}"?`)) return;
+      try {
+        await sendMessage<{ success: boolean }>({ type: 'DELETE_FOLDER', payload: { pageId: node.pageId } });
+      } finally {
+        loadFolderTree();
+      }
+    });
+
     item.appendChild(addBtn);
+    item.appendChild(delBtn);
     li.appendChild(item);
 
     if (node.children.length) li.appendChild(renderNodes(node.children, depth + 1));
@@ -184,8 +218,9 @@ function showInlineFolderForm(container: HTMLElement, parentPageId: string | nul
     if (!name) { input.focus(); return; }
     form.remove();
     try {
-      await sendMessage<{ success: boolean }>({ type: 'CREATE_FOLDER', payload: { name, parentPageId } });
-    } finally {
+      const res = await sendMessage<{ success: boolean; pageId?: string }>({ type: 'CREATE_FOLDER', payload: { name, parentPageId } });
+      await loadFolderTree(res.pageId);
+    } catch {
       loadFolderTree();
     }
   };
@@ -196,6 +231,41 @@ function showInlineFolderForm(container: HTMLElement, parentPageId: string | nul
   });
   confirmBtn.addEventListener('click', submit);
   cancelBtn.addEventListener('click', () => form.remove());
+}
+
+function showRenameForm(item: HTMLElement, nameSpan: HTMLElement, pageId: string, currentName: string): void {
+  if (item.querySelector('.folder-rename-input')) return;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'folder-inline-input folder-rename-input';
+  input.value = currentName;
+
+  nameSpan.replaceWith(input);
+  input.select();
+
+  const cancel = () => {
+    input.replaceWith(nameSpan);
+  };
+
+  const submit = async () => {
+    const name = input.value.trim();
+    if (!name || name === currentName) { cancel(); return; }
+    nameSpan.textContent = name;
+    input.replaceWith(nameSpan);
+    try {
+      await sendMessage<{ success: boolean }>({ type: 'RENAME_FOLDER', payload: { pageId, name } });
+      await loadFolderTree(pageId);
+    } catch {
+      loadFolderTree(pageId);
+    }
+  };
+
+  input.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    if (e.key === 'Escape') cancel();
+  });
+  input.addEventListener('blur', () => setTimeout(cancel, 150));
 }
 
 // Views

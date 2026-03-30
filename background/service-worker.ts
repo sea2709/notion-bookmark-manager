@@ -38,6 +38,15 @@ interface CreateFolderPayload {
   parentPageId?: string | null;
 }
 
+interface DeleteFolderPayload {
+  pageId: string;
+}
+
+interface RenameFolderPayload {
+  pageId: string;
+  name: string;
+}
+
 interface MessageResponse {
   success: boolean;
   error?: string;
@@ -82,6 +91,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch((err: Error) => sendResponse({ success: false, error: err.message }));
     return true;
   }
+
+  if (message.type === 'DELETE_FOLDER') {
+    handleDeleteFolder(message.payload as DeleteFolderPayload)
+      .then(sendResponse)
+      .catch((err: Error) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.type === 'RENAME_FOLDER') {
+    handleRenameFolder(message.payload as RenameFolderPayload)
+      .then(sendResponse)
+      .catch((err: Error) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
 });
 
 async function handleSaveBookmark({ title, url, notes, prompt, folderPageId }: SaveBookmarkPayload): Promise<MessageResponse> {
@@ -116,6 +139,14 @@ async function handleSearchBookmarks({ keyword }: SearchBookmarksPayload): Promi
 
 async function handleCreateFolder({ name, parentPageId }: CreateFolderPayload): Promise<MessageResponse> {
   return callServer('create_folder', { name, ...(parentPageId ? { parentPageId } : {}) });
+}
+
+async function handleDeleteFolder({ pageId }: DeleteFolderPayload): Promise<MessageResponse> {
+  return callServer('delete_folder', { pageId });
+}
+
+async function handleRenameFolder({ pageId, name }: RenameFolderPayload): Promise<MessageResponse> {
+  return callServer('rename_folder', { pageId, name });
 }
 
 async function handleFetchRecent({ forceRefresh = false }: FetchRecentPayload): Promise<MessageResponse> {

@@ -156,12 +156,12 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
 
   async create_folder(args) {
     const { name, parentPageId } = args as CreateFolderArgs;
-    await createFolder({
+    const page = await createFolder({
       apiToken: getApiToken(),
       databaseId: getFolderDatabaseId(),
       name, parentPageId
-    });
-    return { success: true };
+    }) as { id: string };
+    return { success: true, pageId: page.id };
   },
 
   async rename_folder(args) {

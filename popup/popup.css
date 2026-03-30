@@ -169,7 +169,7 @@ body {
 }
 
 .folder-item:hover {
-  background: var(--color-hover);
+  background: var(--color-bg-hover);
 }
 
 .folder-item-add {
@@ -187,7 +187,8 @@ body {
   flex-shrink: 0;
 }
 
-.folder-item:hover .folder-item-add {
+.folder-item:hover .folder-item-add,
+.folder-item:hover .folder-item-delete:not(:disabled) {
   display: flex;
 }
 
@@ -196,11 +197,32 @@ body {
   color: var(--color-text);
 }
 
+.folder-item-delete {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 2px 3px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.folder-item-delete:hover {
+  background: var(--color-error-light);
+  color: var(--color-error);
+}
+
 .folder-inline-form {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px 4px 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-right: 8px;
 }
 
 .folder-inline-input {
@@ -228,7 +250,7 @@ body {
 }
 
 .folder-inline-btn:hover {
-  background: var(--color-hover);
+  background: var(--color-bg-hover);
   color: var(--color-text);
 }
 
@@ -247,7 +269,7 @@ body {
 }
 
 .folder-new-root:hover {
-  background: var(--color-hover);
+  background: var(--color-bg-hover);
   color: var(--color-text);
 }
 
