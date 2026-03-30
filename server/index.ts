@@ -3,6 +3,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import {
   createBookmark,
+  deleteBookmark,
   queryRecentBookmarks,
   queryFolders,
   createFolder,
@@ -64,6 +65,10 @@ interface MoveFolderArgs {
   pageId: string;
   parentPageId?: string | null;
   parentPropName?: string;
+}
+
+interface DeleteBookmarkArgs {
+  pageId: string;
 }
 
 interface DeleteFolderArgs {
@@ -173,6 +178,12 @@ const TOOL_HANDLERS: Record<string, (args: unknown) => Promise<Record<string, un
   async move_folder(args) {
     const { pageId, parentPageId, parentPropName } = args as MoveFolderArgs;
     await moveFolder({ apiToken: getApiToken(), pageId, parentPageId, parentPropName });
+    return { success: true };
+  },
+
+  async delete_bookmark(args) {
+    const { pageId } = args as DeleteBookmarkArgs;
+    await deleteBookmark({ apiToken: getApiToken(), pageId });
     return { success: true };
   },
 

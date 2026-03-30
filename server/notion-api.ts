@@ -183,6 +183,16 @@ export async function createFolder({
   });
 }
 
+export interface DeleteBookmarkParams {
+  apiToken: string;
+  pageId: string;
+}
+
+export async function deleteBookmark({ apiToken, pageId }: DeleteBookmarkParams): Promise<unknown> {
+  const notion = createClient(apiToken);
+  return notion.pages.update({ page_id: pageId, archived: true });
+}
+
 export interface DeleteFolderParams {
   apiToken: string;
   pageId: string;

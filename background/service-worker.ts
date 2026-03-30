@@ -38,6 +38,10 @@ interface CreateFolderPayload {
   parentPageId?: string | null;
 }
 
+interface DeleteBookmarkPayload {
+  pageId: string;
+}
+
 interface DeleteFolderPayload {
   pageId: string;
 }
@@ -92,6 +96,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'DELETE_BOOKMARK') {
+    handleDeleteBookmark(message.payload as DeleteBookmarkPayload)
+      .then(sendResponse)
+      .catch((err: Error) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
   if (message.type === 'DELETE_FOLDER') {
     handleDeleteFolder(message.payload as DeleteFolderPayload)
       .then(sendResponse)
@@ -139,6 +150,10 @@ async function handleSearchBookmarks({ keyword }: SearchBookmarksPayload): Promi
 
 async function handleCreateFolder({ name, parentPageId }: CreateFolderPayload): Promise<MessageResponse> {
   return callServer('create_folder', { name, ...(parentPageId ? { parentPageId } : {}) });
+}
+
+async function handleDeleteBookmark({ pageId }: DeleteBookmarkPayload): Promise<MessageResponse> {
+  return callServer('delete_bookmark', { pageId });
 }
 
 async function handleDeleteFolder({ pageId }: DeleteFolderPayload): Promise<MessageResponse> {

@@ -472,6 +472,42 @@ textarea {
   display: flex;
   align-items: center;
   gap: 5px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-right: 8px;
+  cursor: default;
+}
+
+.bookmark-item-tree:hover {
+  background: var(--color-bg-hover);
+}
+
+.bookmark-item-delete {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 2px 3px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.bookmark-item-tree:hover {
+  background: var(--color-bg-hover);
+}
+
+.bookmark-item-tree:hover .bookmark-item-delete {
+  display: flex;
+}
+
+.bookmark-item-delete:hover {
+  background: var(--color-error-light);
+  color: var(--color-error);
 }
 
 .empty-recent {
