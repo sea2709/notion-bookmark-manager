@@ -279,8 +279,8 @@ export async function searchBookmark({
   const prompt = `Search for pages under the database with the ID ${databaseId} mentioning '${keyword}'.
 For each matching page, retrieve its URL property and read its content.
 Format your response as a list. For each result:
-- Write the page name as a markdown link using its URL property: [Page Name](https://...)
-- On the next line, include a single short sentence (max 20 words) highlighting the most relevant part of the page content related to '${keyword}'
+- Write the page name as a markdown link using its URL property: [Page Name](https://...) — [Open it in Notion](https://www.notion.so/<page-id-without-hyphens>)
+- On the next line, include a single short sentence (max 40 words) highlighting the most relevant part of the page content related to '${keyword}'
 If a page has no URL property, mention the name as plain text. If there is no relevant highlight, omit that line.`;
   
   const response = await ai.models.generateContent({

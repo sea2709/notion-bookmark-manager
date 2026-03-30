@@ -122,6 +122,11 @@ label {
   width: 100%;
 }
 
+.btn-sm {
+  padding: 4px 10px;
+  font-size: var(--font-size-sm);
+}
+
 .status-message {
   display: flex;
   align-items: center;

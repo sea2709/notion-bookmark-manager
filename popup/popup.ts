@@ -14,6 +14,7 @@ const inputUrl      = document.getElementById('input-url') as HTMLInputElement;
 const inputNotes    = document.getElementById('input-notes') as HTMLTextAreaElement;
 const inputPrompt   = document.getElementById('input-prompt') as HTMLTextAreaElement;
 const inputSearch   = document.getElementById('input-search') as HTMLInputElement;
+const btnSearchRun  = document.getElementById('btn-search-run') as HTMLButtonElement;
 const saveStatus    = document.getElementById('save-status') as HTMLElement;
 const browseList    = document.getElementById('browse-list') as HTMLElement;
 const searchResults = document.getElementById('search-results') as HTMLElement;
@@ -303,7 +304,6 @@ interface SaveResponse {
 }
 
 btnSave.addEventListener('click', async () => {
-  loadFolderTree();
   const title = inputTitle.value.trim();
   if (!title) {
     showSaveStatus('error', 'Please enter a title.');
@@ -614,18 +614,22 @@ async function executeSearch(): Promise<void> {
   try {
     const res = await sendMessage<SearchResponse>({ type: 'SEARCH_BOOKMARKS', payload: { keyword } });
     if (!res.success) {
-      searchResults.innerHTML = `<div class="empty-recent"><span>Search failed.</span></div>`;
+      showSearchError('Search failed.');
       return;
     }
     searchResults.innerHTML = `<div class="search-result-text">${renderMarkdown(res.text ?? '')}</div>`;
   } catch {
-    searchResults.innerHTML = `<div class="empty-recent"><span>Connection failed.</span></div>`;
+    showSearchError('Connection failed.');
   }
+}
+
+function showSearchError(message: string): void {
+  searchResults.innerHTML = `<div class="empty-recent"><span>${message}</span></div>`;
 }
 
 // Event listeners
 btnToggleView.addEventListener('click', () => {
-  showView(currentView === 'browse' ? 'save' : 'browse');
+  if (currentView !== 'browse') showView('browse');
 });
 
 btnManageView.addEventListener('click', () => {
@@ -633,7 +637,7 @@ btnManageView.addEventListener('click', () => {
 });
 
 btnSearchView.addEventListener('click', () => {
-  showView(currentView === 'search' ? 'save' : 'search');
+  if (currentView !== 'search') showView('search');
 });
 
 btnRefresh.addEventListener('click', () => loadBrowseView(true));
@@ -641,6 +645,8 @@ btnRefresh.addEventListener('click', () => loadBrowseView(true));
 inputSearch.addEventListener('keydown', (e: KeyboardEvent) => {
   if (e.key === 'Enter') executeSearch();
 });
+
+btnSearchRun.addEventListener('click', executeSearch);
 
 // Start
 init();
