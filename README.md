@@ -96,8 +96,9 @@ The server runs on `http://localhost:3456` and must be running for the extension
 
 | Property  | Type         |
 |-----------|--------------|
+| ID        | ID        |
 | Name      | Title        |
-| Parent ID | Relation → self (for nesting) |
+| Parent ID | Number → ID (for nesting) |
 
 > The extension auto-detects property names for title and parent relation from your database schema.
 
